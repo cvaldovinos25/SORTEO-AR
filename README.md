@@ -37,8 +37,8 @@ Estados: `SIN_REGISTRO` (jugó pero no dejó datos), `VALIDA` (participa en el s
 1. Crea una planilla en Google Sheets (por ejemplo "Kotex RA Sorteo").
 2. *Extensiones > Apps Script*. Pega el contenido de `apps-script/Code.gs`.
 3. En *Configuración del proyecto* activa "Mostrar archivo de manifiesto" y reemplaza `appsscript.json` por el de este repo.
-4. Ejecuta `setup` una vez y acepta los permisos. Crea las hojas `Jugadas`, `Sorteo` y `Config`.
-5. *Implementar > Nueva implementación > Aplicación web*: ejecutar como **tú**, acceso **Cualquier persona**. Copia la URL que termina en `/exec`.
+4. Arriba elige la función `setup` y toca **Ejecutar**. Google pedirá permisos: *Revisar permisos* > tu cuenta > si aparece "Google no verificó esta aplicación", toca *Configuración avanzada* > *Ir a (nombre del proyecto) (no seguro)* > *Permitir*. Es normal: el script es tuyo. Crea las hojas `Jugadas`, `Sorteo` y `Config`.
+5. *Implementar > Nueva implementación*. En el engranaje elige tipo **Aplicación web**, y configura: *Ejecutar como* = **Yo**, *Quién tiene acceso* = **Cualquier persona**. Toca *Implementar* y copia la **URL de la aplicación web** (termina en `/exec`). Esa es la URL que va en `ENDPOINT`.
 
 > Cada vez que cambies `Code.gs` debes crear una **nueva versión** de la implementación para que se apliquen los cambios. Si ya tenías una versión anterior en uso, vuelve a ejecutar `setup` para agregar la columna Puntaje.
 
@@ -48,7 +48,9 @@ Estados: `SIN_REGISTRO` (jugó pero no dejó datos), `VALIDA` (participa en el s
 
 ### 2. Frontend en GitHub Pages
 1. Sube `index.html` al repo (reemplaza el anterior).
-2. En `index.html`, bloque `CONFIG`, pega la URL en `ENDPOINT`. Con `ENDPOINT` vacío corre en **modo demo** (guarda en el celular; ideal para probar el juego).
+2. **Aquí va Google Sheets:** en `index.html`, dentro del bloque `CONFIG` (cerca de la línea 172, bajo el comentario `AQUÍ VA LA CONEXIÓN CON GOOGLE SHEETS`), pega la URL entre las comillas:
+   `ENDPOINT:"https://script.google.com/macros/s/XXXXXXXX/exec",`
+   Con `ENDPOINT` vacío corre en **modo demo** (guarda en el celular; ideal para probar el juego, pero no escribe en la planilla).
 3. *Settings > Pages > Deploy from a branch > main / root*.
 4. Prueba abriendo `https://USUARIO.github.io/REPO/?t=SALCO-001&g=G12&debug=1` desde un celular. El aviso `DEBUG` indica si está conectada a Google Sheets o en modo demo. Quita `&debug=1` en los stickers definitivos.
 5. En modo demo, para volver a probar abre la página con `?reset=1`. Esa opción se desactiva sola cuando `ENDPOINT` tiene la URL real.
@@ -74,6 +76,11 @@ Estados: `SIN_REGISTRO` (jugó pero no dejó datos), `VALIDA` (participa en el s
 | `ROUND_TIMEOUT` | Segundos máximos por ronda |
 | `MODEL_URL` | Opcional: URL de un modelo `.glb` real de la caja. Reemplaza al modelo incluido |
 | `COLORS`, `DRAW_TEXT`, `BASES_URL` | Paleta, texto final y enlace a las bases |
+
+## Animación y sonido
+- **Animación:** la caja se cierra al empezar, hay cuenta regresiva 3-2-1, y cada toque lanza una onda de impacto, chispas y un "+puntos" flotante; la caja rebota al acertar y se sacude al fallar. Al terminar tiembla, se abre la tapa con destello, ampolletas y confeti, y el puntaje sube contando. Respeta la opción "reducir movimiento" del celular.
+- **Sonido:** se genera por código (sin archivos) con campanas, plucks y ruido filtrado, reverb corto y limitador. Cada sonido cambia con el resultado: acorde brillante en un tiro perfecto, dos notas en uno muy bueno, una nota en uno regular y un golpe suave al fallar. Hay botón de silencio arriba a la izquierda que recuerda la elección. El sonido se activa al tocar "Entendido, jugar" (los celulares no permiten audio antes del primer toque).
+- Los tiempos de cada ronda, dificultad y puntos están en el bloque `CONFIG`; los sonidos están en la función `createSfx`.
 
 ## La caja 3D
 El modelo incluido se arma por código a partir del diseño real: cajón inferior con cámara y foto, bandeja con CD, toallas Kotex (rosada y nocturna) y stickers, tapa con espejo, ampolletas y banda de colores. Al empezar el juego la caja se cierra y al terminar se abre con las ampolletas encendidas. Es una aproximación fiel pero no un escaneo: para máxima fidelidad pide a un artista 3D un `.glb` liviano (menos de 3 MB) y pon su URL en `MODEL_URL`.
