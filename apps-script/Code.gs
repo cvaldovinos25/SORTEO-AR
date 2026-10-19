@@ -1,10 +1,12 @@
 /**
  * Kotex RA | Backend de jugadas sobre Google Sheets
  *
- * Cada jugada ganadora genera una fila con: código único, fecha y hora (Chile),
- * tienda, góndola y, luego del registro, nombre y celular.
- * La hoja "Jugadas" se puede descargar como Excel (Archivo > Descargar > .xlsx).
+ * Reglas del concurso que implementa este script:
+ *  - Cada persona juega UNA sola vez (1 jugada por dispositivo y 1 participación válida por celular).
+ *  - Cada jugada recibe un código único, la hora oficial de Chile y su puntaje.
+ *  - En el sorteo, cada punto es un boleto: más puntaje = más probabilidad de ganar.
  *
+ * La hoja "Jugadas" se puede descargar como Excel (Archivo > Descargar > .xlsx).
  * Uso: pega este archivo en Extensiones > Apps Script de tu planilla,
  * ejecuta setup() una vez y publica como "Aplicación web" (ver README).
  */
@@ -13,19 +15,42 @@ const TZ = 'America/Santiago';
 const SHEET_PLAYS = 'Jugadas';
 const SHEET_DRAW = 'Sorteo';
 const SHEET_CONFIG = 'Config';
-const MAX_CODES_PER_DEVICE_DAY = 3; // tope anti abuso por celular y día
+const MAX_PLAYS_PER_DEVICE = 1;   // solo se puede jugar 1 vez
+const SCORE_MAX = 500;            // = ROUNDS * MAX_PER_ROUND en index.html (5 x 100)
 
 const COLS = {CODE: 1, TS: 2, ISO: 3, CLIENT_TS: 4, STORE: 5, GONDOLA: 6, DEVICE: 7,
-              NAME: 8, PHONE: 9, OPTIN: 10, STATE: 11, REGISTERED_AT: 12, UA: 13, CAMPAIGN: 14};
+              NAME: 8, PHONE: 9, OPTIN: 10, STATE: 11, REGISTERED_AT: 12, UA: 13, CAMPAIGN: 14,
+              SCORE: 15};
 const HEADERS = ['Código', 'Fecha y hora (Chile)', 'Timestamp UTC', 'Hora reportada por el celular',
                  'Tienda', 'Góndola', 'Dispositivo', 'Nombre', 'Teléfono', 'Opt-in', 'Estado',
-                 'Registrado en', 'User agent', 'Campaña'];
+                 'Registrado en', 'User agent', 'Campaña', 'Puntaje'];
 const CODE_RE = /^KTX-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/;
 
 /* ---------------- Endpoints ---------------- */
 
 function doGet() {
-  return json_({ok: true, service: 'kotex-ra'});
+  // Sirve para verificar la conexión: abre la URL /exec en el navegador o usa ?debug=1 en la página
+  try {
+    const sh = playsSheet_();
+    return json_({ok: true, service: 'kotex-ra', sheet: SHEET_PLAYS, rows: Math.max(0, sh.getLastRow() - 1)});
+  } catch (err) {
+    return json_({ok: false, service: 'kotex-ra', error: 'no_sheet', detail: String(err)});
+  }
+}
+
+/** Escribe una jugada de prueba, la borra y avisa. Ejecútala desde el editor o el menú Kotex. */
+function probarConexion() {
+  const sh = playsSheet_();
+  const code = 'KTX-TEST-2345';
+  const before = sh.getLastRow();
+  const res = handlePlay_({code: code, store: 'PRUEBA', gondola: 'PRUEBA', device: 'prueba-' + Date.now(),
+                           clientTs: new Date().toISOString(), ua: 'probarConexion', campaign: 'PRUEBA', score: 1});
+  const row = findRow_(sh, code);
+  if (row) sh.deleteRow(row);
+  const msg = res.ok ? 'Conexión OK: se escribió y borró una fila de prueba (' + res.tsLocal + ').'
+                     : 'Falló la prueba: ' + JSON.stringify(res);
+  Logger.log(msg + ' Filas antes: ' + before);
+  try { SpreadsheetApp.getUi().alert(msg); } catch (e) {}
 }
 
 function doPost(e) {
@@ -55,19 +80,19 @@ function handlePlay_(b) {
   if (!CODE_RE.test(code)) return {ok: false, error: 'bad_code'};
   if (findRow_(sh, code)) return {ok: false, error: 'duplicate'};
 
+  const score = Math.round(Number(b.score));
+  if (!isFinite(score) || score < 0 || score > SCORE_MAX) return {ok: false, error: 'bad_score'};
+
   const device = clean_(b.device, 64);
   const now = new Date();
-  const dayKey = day_(now);
 
-  // Tope de códigos por dispositivo y día
+  // Solo 1 jugada por dispositivo
   const last = sh.getLastRow();
   if (last >= 2 && device) {
-    const rows = sh.getRange(2, 1, last - 1, HEADERS.length).getValues();
+    const devs = sh.getRange(2, COLS.DEVICE, last - 1, 1).getValues();
     let n = 0;
-    rows.forEach(function (r) {
-      if (String(r[COLS.DEVICE - 1]) === device && day_(r[COLS.TS - 1]) === dayKey) n++;
-    });
-    if (n >= MAX_CODES_PER_DEVICE_DAY) return {ok: false, error: 'limit'};
+    for (let i = 0; i < devs.length; i++) if (String(devs[i][0]) === device) n++;
+    if (n >= MAX_PLAYS_PER_DEVICE) return {ok: false, error: 'limit'};
   }
 
   const row = new Array(HEADERS.length).fill('');
@@ -81,9 +106,10 @@ function handlePlay_(b) {
   row[COLS.STATE - 1] = 'SIN_REGISTRO';
   row[COLS.UA - 1] = clean_(b.ua, 180);
   row[COLS.CAMPAIGN - 1] = clean_(b.campaign, 60);
+  row[COLS.SCORE - 1] = score;
   sh.appendRow(row);
 
-  return {ok: true, ts: now.toISOString(), tsLocal: fmt_(now)};
+  return {ok: true, ts: now.toISOString(), tsLocal: fmt_(now), score: score};
 }
 
 function handleRegister_(b) {
@@ -104,15 +130,13 @@ function handleRegister_(b) {
     return {ok: true, already: true, estado: rec[COLS.STATE - 1], tsLocal: fmt_(rec[COLS.TS - 1])};
   }
 
-  // Un celular solo puede tener una participación válida por día
-  const dayKey = day_(rec[COLS.TS - 1]);
+  // Un mismo celular solo puede tener una participación válida en toda la campaña
   const last = sh.getLastRow();
   const all = sh.getRange(2, 1, last - 1, HEADERS.length).getValues();
   let dup = false;
   for (let i = 0; i < all.length; i++) {
     const r = all[i];
-    if (String(r[COLS.PHONE - 1]) === phone && r[COLS.STATE - 1] === 'VALIDA' &&
-        day_(r[COLS.TS - 1]) === dayKey) { dup = true; break; }
+    if (String(r[COLS.PHONE - 1]) === phone && r[COLS.STATE - 1] === 'VALIDA') { dup = true; break; }
   }
   const estado = dup ? 'DUPLICADA' : 'VALIDA';
   sh.getRange(row, COLS.NAME, 1, 3).setValues([[name, phone, 'SI']]);
@@ -125,7 +149,8 @@ function handleRegister_(b) {
 function onOpen() {
   SpreadsheetApp.getUi().createMenu('Kotex')
     .addItem('Preparar hojas (una sola vez)', 'setup')
-    .addItem('Sortear ganadoras', 'sortear')
+    .addItem('Probar conexión', 'probarConexion')
+    .addItem('Sortear ganadoras (por puntaje)', 'sortear')
     .addToUi();
 }
 
@@ -145,8 +170,8 @@ function setup() {
   sh.setColumnWidth(COLS.TS, 160);
 
   let dr = ss.getSheetByName(SHEET_DRAW) || ss.insertSheet(SHEET_DRAW);
-  dr.getRange(1, 1, 1, 8).setValues([['Fecha del sorteo', 'Puesto', 'Tipo', 'Código', 'Nombre',
-                                      'Teléfono', 'Tienda', 'Hora de la jugada']])
+  dr.getRange(1, 1, 1, 9).setValues([['Fecha del sorteo', 'Puesto', 'Tipo', 'Código', 'Nombre',
+                                      'Teléfono', 'Tienda', 'Hora de la jugada', 'Puntaje (boletos)']])
     .setFontWeight('bold').setBackground('#ece3fa');
   dr.setFrozenRows(1);
 
@@ -160,6 +185,10 @@ function setup() {
   if (def && ss.getSheets().length > 1) ss.deleteSheet(def);
 }
 
+/**
+ * Sorteo ponderado: cada participante válida tiene tantos boletos como puntos obtuvo (mínimo 1).
+ * Probabilidad de ser elegida = sus boletos / boletos de todas las participantes.
+ */
 function sortear() {
   const ui = SpreadsheetApp.getUi();
   const r1 = ui.prompt('Sorteo Kotex', '¿Cuántas ganadoras?', ui.ButtonSet.OK_CANCEL);
@@ -190,24 +219,42 @@ function sortear() {
     return;
   }
 
-  // Fisher-Yates
-  for (let i = pool.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    const tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp;
-  }
-  const picks = pool.slice(0, nWin + nSub);
+  const picks = weightedPick_(pool, nWin + nSub);
   const now = new Date();
   const out = picks.map(function (r, i) {
     return [now, i + 1, i < nWin ? 'Ganadora' : 'Suplente', r[COLS.CODE - 1], r[COLS.NAME - 1],
-            String(r[COLS.PHONE - 1]), r[COLS.STORE - 1], r[COLS.TS - 1]];
+            String(r[COLS.PHONE - 1]), r[COLS.STORE - 1], r[COLS.TS - 1], weight_(r)];
   });
   const dr = ss.getSheetByName(SHEET_DRAW);
   const start = dr.getLastRow() + 1;
-  dr.getRange(start, 1, out.length, 8).setValues(out);
+  dr.getRange(start, 1, out.length, 9).setValues(out);
   dr.getRange(start, 1, out.length, 1).setNumberFormat('dd-mm-yyyy hh:mm:ss');
   dr.getRange(start, 8, out.length, 1).setNumberFormat('dd-mm-yyyy hh:mm:ss');
   dr.getRange(start, 6, out.length, 1).setNumberFormat('@');
-  ui.alert('Sorteo listo', 'Se registraron ' + nWin + ' ganadoras y ' + nSub + ' suplentes en la hoja "Sorteo".', ui.ButtonSet.OK);
+  let tickets = 0;
+  pool.forEach(function (r) { tickets += weight_(r); });
+  ui.alert('Sorteo listo', 'Participaron ' + pool.length + ' personas con ' + tickets + ' boletos en total. ' +
+           'Se registraron ' + nWin + ' ganadoras y ' + nSub + ' suplentes en la hoja "Sorteo".', ui.ButtonSet.OK);
+}
+
+/** Boletos de una jugada: su puntaje, con mínimo 1. */
+function weight_(row) {
+  const s = Math.round(Number(row[COLS.SCORE - 1]));
+  return isFinite(s) && s > 0 ? s : 1;
+}
+
+/**
+ * Muestreo ponderado sin reemplazo (Efraimidis-Spirakis): clave = ln(u) / peso, se eligen las mayores.
+ * Cada elección sucesiva tiene probabilidad proporcional al peso entre las que quedan.
+ */
+function weightedPick_(pool, n) {
+  const keyed = pool.map(function (r) {
+    let u = Math.random();
+    if (u <= 0) u = Number.MIN_VALUE;
+    return {r: r, k: Math.log(u) / weight_(r)};
+  });
+  keyed.sort(function (a, b) { return b.k - a.k; });
+  return keyed.slice(0, n).map(function (x) { return x.r; });
 }
 
 /* ---------------- Auxiliares ---------------- */
