@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#2a1250">
+<title>Kotex | Desbloquea tu caja</title>
+<style>
+:root{--p:#6d28d9;--a:#ff4fa3;--bg:#150a26;--card:rgba(24,12,44,.94);--ok:#2dd4a0;--bad:#ff6b6b;--mut:#c9b8ea}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:#fff;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+#cam,#gl{position:fixed;inset:0;width:100%;height:100%}
+#cam{object-fit:cover;background:linear-gradient(160deg,#3a1773,#150a26 70%)}
+#gl{touch-action:manipulation}
+.shade{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,transparent 45%,rgba(10,4,24,.6) 100%)}
+#demo{position:fixed;top:calc(8px + env(safe-area-inset-top));right:8px;background:#f5c542;color:#2b1d00;font:700 11px system-ui;padding:4px 8px;border-radius:99px;z-index:9}
+.screen{position:fixed;inset:0;display:none;flex-direction:column;justify-content:flex-end;padding:18px 16px calc(18px + env(safe-area-inset-bottom));z-index:5;overflow:auto}
+.screen.on{display:flex}
+.card{background:var(--card);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.12);border-radius:26px;padding:22px 20px;max-width:460px;width:100%;margin:0 auto;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.eyebrow{margin:0 0 6px;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--a);font-weight:700}
+h1{margin:0 0 12px;font-size:26px;line-height:1.15}
+h2{margin:0 0 8px;font-size:22px;line-height:1.2}
+p{margin:0 0 12px;line-height:1.45;color:var(--mut)}
+.steps{margin:0 0 18px;padding:0;list-style:none;display:grid;gap:10px}
+.steps li{display:flex;gap:12px;align-items:center;color:#fff;font-size:15px}
+.steps b{flex:none;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,var(--p),var(--a));font-size:14px}
+.btn{width:100%;border:0;border-radius:16px;padding:16px;font:700 17px system-ui;color:#fff;background:linear-gradient(135deg,var(--p),var(--a));box-shadow:0 8px 24px rgba(255,79,163,.35);cursor:pointer}
+.btn:disabled{opacity:.6}
+.btn.ghost{background:transparent;border:1px solid rgba(255,255,255,.3);box-shadow:none;margin-top:10px}
+.fine{font-size:12px;margin:12px 0 0;color:var(--mut);text-align:center}
+.fine a{color:#fff}
+/* HUD */
+#hud{justify-content:space-between;pointer-events:none}
+.top{display:flex;flex-direction:column;align-items:center;gap:10px;padding-top:env(safe-area-inset-top)}
+.pill{background:rgba(21,10,38,.7);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.15);border-radius:99px;padding:8px 16px;font-size:14px;font-weight:600}
+#dots{display:flex;gap:10px}
+#dots i{width:14px;height:14px;border-radius:50%;background:rgba(255,255,255,.25);border:2px solid rgba(255,255,255,.5)}
+#dots i.ok{background:var(--ok);border-color:var(--ok)}
+#dots i.no{background:var(--bad);border-color:var(--bad)}
+#hint{align-self:center;text-align:center;font-size:16px;font-weight:600;padding:12px 18px;background:rgba(21,10,38,.7);border-radius:18px;max-width:340px;margin-bottom:8px}
+/* code + form */
+.badge{display:inline-block;background:rgba(45,212,160,.18);color:var(--ok);font-weight:700;font-size:12px;padding:5px 10px;border-radius:99px;margin-bottom:10px}
+.badge.warn{background:rgba(245,197,66,.18);color:#f5c542}
+.code{font:800 30px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.06em;text-align:center;padding:14px 8px;border-radius:16px;background:rgba(255,255,255,.07);border:1px dashed rgba(255,255,255,.35);margin:6px 0 4px;user-select:all}
+.ts{font-size:13px;text-align:center;color:var(--mut);margin:0 0 14px}
+form{display:grid;gap:10px}
+label{font-size:13px;color:var(--mut)}
+input[type=text],input[type=tel]{width:100%;padding:14px;border-radius:14px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:#fff;font-size:16px;margin-top:4px}
+.phone{display:flex;align-items:center;gap:8px}
+.phone span{margin-top:4px;padding:14px 12px;border-radius:14px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.25)}
+.chk{display:flex;gap:10px;align-items:flex-start;font-size:13px}
+.chk input{margin-top:2px;width:20px;height:20px;flex:none}
+.chk a{color:#fff}
+.err{min-height:18px;margin:0;font-size:13px;color:var(--bad)}
+.toast{position:fixed;left:50%;top:calc(60px + env(safe-area-inset-top));transform:translateX(-50%);background:rgba(21,10,38,.9);border:1px solid rgba(255,255,255,.2);padding:10px 14px;border-radius:14px;font-size:13px;z-index:9;display:none;max-width:90%;text-align:center}
+</style>
+</head>
+<body>
+<video id="cam" playsinline muted autoplay></video>
+<canvas id="gl"></canvas>
+<div class="shade"></div>
+<div id="demo" hidden>MODO DEMO</div>
+<div class="toast" id="toast"></div>
+
+<section class="screen" id="intro">
+  <div class="card">
+    <p class="eyebrow">Kotex en Salcobrand</p>
+    <h1>Desbloquea tu caja Kotex</h1>
+    <ol class="steps">
+      <li><b>1</b>Apunta tu cámara a la góndola</li>
+      <li><b>2</b>Toca la pantalla cuando la luz llegue a la zona brillante</li>
+      <li><b>3</b>Consigue tu código único y participa en el sorteo</li>
+    </ol>
+    <button class="btn" id="go">Comenzar</button>
+    <p class="fine">Usaremos tu cámara solo para la experiencia. <a href="#" class="bases">Bases del concurso</a></p>
+  </div>
+</section>
+
+<section class="screen" id="hud">
+  <div class="top">
+    <div class="pill" id="roundTxt">Ronda 1 de 3</div>
+    <div id="dots"></div>
+  </div>
+  <div id="hint">Apunta tu cámara a la góndola</div>
+</section>
+
+<section class="screen" id="lose">
+  <div class="card">
+    <p class="eyebrow">¡Casi!</p>
+    <h2>Se te escapó la luz</h2>
+    <p id="loseTxt">Necesitas acertar 2 de 3 para desbloquear la caja.</p>
+    <button class="btn" id="retry">Intentar de nuevo</button>
+  </div>
+</section>
+
+<section class="screen" id="win">
+  <div class="card">
+    <span class="badge">Caja desbloqueada</span>
+    <h2>Este es el código de tu jugada</h2>
+    <div class="code" id="code">KTX-0000-0000</div>
+    <p class="ts" id="ts"></p>
+    <p class="ts" id="pending" hidden><span class="badge warn">Sin señal: se enviará solo cuando vuelva la conexión</span></p>
+    <form id="f" novalidate>
+      <p style="margin:0">Registra tus datos para entrar al sorteo:</p>
+      <label>Nombre
+        <input type="text" id="name" autocomplete="name" maxlength="80" placeholder="Tu nombre y apellido">
+      </label>
+      <label>Celular
+        <div class="phone"><span>+56</span><input type="tel" id="phone" autocomplete="tel-national" inputmode="numeric" maxlength="14" placeholder="9 1234 5678"></div>
+      </label>
+      <label class="chk"><input type="checkbox" id="optin"><span>Acepto las <a href="#" class="bases">bases del concurso</a> y que me contacten si resulto ganadora.</span></label>
+      <p class="err" id="err"></p>
+      <button class="btn" id="send" type="submit">Registrarme en el sorteo</button>
+    </form>
+  </div>
+</section>
+
+<section class="screen" id="done">
+  <div class="card">
+    <span class="badge">Participación registrada</span>
+    <h2>Ya estás en el sorteo</h2>
+    <div class="code" id="code2">KTX-0000-0000</div>
+    <p class="ts" id="ts2"></p>
+    <p id="drawTxt"></p>
+    <button class="btn ghost" id="share">Compartir con una amiga</button>
+  </div>
+</section>
+
+<section class="screen" id="limit">
+  <div class="card">
+    <h2>Llegaste al máximo de jugadas de hoy</h2>
+    <p>Vuelve mañana para participar de nuevo.</p>
+  </div>
+</section>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(()=>{
+'use strict';
+
+/* ---------- Configuración (edita solo este bloque) ---------- */
+const CONFIG={
+  ENDPOINT:"",                       // URL de la app web de Google Apps Script (termina en /exec). Vacío = modo demo
+  CAMPAIGN:"KOTEX-SALCOBRAND-2026",
+  ROUNDS:3, NEED:2,                  // acertar NEED de ROUNDS
+  SPEEDS:[1.6,2.2,2.9],              // radianes por segundo en cada ronda
+  TOLERANCE:0.36,                    // semiancho de la zona brillante (rad). Menor = más difícil
+  BOX_TEXTURE:"",                    // URL opcional de la imagen frontal de la caja (packshot)
+  DRAW_TEXT:"Los códigos se sortean al cierre del concurso. Si resultas ganadora, te contactaremos por celular.",
+  BASES_URL:"#",
+  COLORS:{primary:"#6d28d9",accent:"#ff4fa3"}
+};
+
+/* ---------- Utilidades ---------- */
+const $=s=>document.querySelector(s);
+const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
+const TAU=Math.PI*2;
+const angDist=(a,b)=>{const d=Math.abs((((a-b)%TAU)+TAU)%TAU);return d>Math.PI?TAU-d:d;};
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const store={
+  get(k,d=null){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}},
+  set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+};
+const clean=s=>String(s||'').replace(/[^\w\-]/g,'').slice(0,40);
+const qs=new URLSearchParams(location.search);
+const STORE_ID=clean(qs.get('t'))||'SIN-TIENDA';
+const GONDOLA=clean(qs.get('g'))||'SIN-GONDOLA';
+const today=()=>new Date().toLocaleDateString('en-CA',{timeZone:'America/Santiago'});
+const fmtCL=d=>new Date(d).toLocaleString('es-CL',{timeZone:'America/Santiago',hour12:false});
+const rnd=()=>{const a=new Uint8Array(16);crypto.getRandomValues(a);return [...a].map(n=>n.toString(16).padStart(2,'0')).join('');};
+let DEVICE=store.get('kx_device');
+if(!DEVICE){DEVICE=rnd();store.set('kx_device',DEVICE);}
+
+document.documentElement.style.setProperty('--p',CONFIG.COLORS.primary);
+document.documentElement.style.setProperty('--a',CONFIG.COLORS.accent);
+document.querySelectorAll('.bases').forEach(a=>{a.href=CONFIG.BASES_URL;a.target='_blank';a.rel='noopener';});
+if(!CONFIG.ENDPOINT)$('#demo').hidden=false;
+
+function show(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));
+  if(id)$('#'+id).classList.add('on');
+}
+let toastT;
+function toast(msg,ms=4000){const t=$('#toast');t.textContent=msg;t.style.display='block';clearTimeout(toastT);toastT=setTimeout(()=>t.style.display='none',ms);}
+
+/* ---------- Audio ---------- */
+let AC;
+function beep(f,d=.12,type='sine',v=.07){
+  try{
+    AC=AC||new (window.AudioContext||window.webkitAudioContext)();
+    const o=AC.createOscillator(),g=AC.createGain();
+    o.type=type;o.frequency.value=f;g.gain.value=v;
+    o.connect(g);g.connect(AC.destination);o.start();
+    g.gain.exponentialRampToValueAtTime(.0001,AC.currentTime+d);o.stop(AC.currentTime+d);
+  }catch(e){}
+}
+
+/* ---------- Backend ---------- */
+function demoApi(p){
+  const rows=store.get('kx_demo',[]);
+  const now=new Date().toISOString();
+  let res;
+  if(p.action==='play'){
+    res=rows.some(r=>r.code===p.code)?{ok:false,error:'duplicate'}:(rows.push({code:p.code,ts:now}),{ok:true,ts:now,tsLocal:fmtCL(now)});
+  }else{
+    const r=rows.find(x=>x.code===p.code);
+    if(!r)res={ok:false,error:'not_found'};
+    else{r.name=p.name;r.phone=p.phone;res={ok:true,estado:'VALIDA',tsLocal:fmtCL(r.ts)};}
+  }
+  store.set('kx_demo',rows);
+  return Promise.resolve(res);
+}
+async function api(payload){
+  if(!CONFIG.ENDPOINT)return demoApi(payload);
+  const ctl=new AbortController();
+  const t=setTimeout(()=>ctl.abort(),12000);
+  try{
+    // Sin cabeceras personalizadas: evita el preflight CORS con Apps Script
+    const r=await fetch(CONFIG.ENDPOINT,{method:'POST',body:JSON.stringify(payload),signal:ctl.signal});
+    return await r.json();
+  }finally{clearTimeout(t);}
+}
+
+const ALPHA='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // 32 símbolos, sin I, O, 0, 1
+function genCode(){
+  const a=new Uint8Array(8);crypto.getRandomValues(a);
+  const s=[...a].map(n=>ALPHA[n%32]).join('');
+  return 'KTX-'+s.slice(0,4)+'-'+s.slice(4);
+}
+
+let last=store.get('kx_last');       // jugada ganadora de hoy
+async function recordPlay(){
+  const clientTs=new Date().toISOString();
+  for(let i=0;i<4;i++){
+    const code=genCode();
+    const p={action:'play',code,campaign:CONFIG.CAMPAIGN,store:STORE_ID,gondola:GONDOLA,device:DEVICE,clientTs,ua:navigator.userAgent.slice(0,180)};
+    try{
+      const res=await api(p);
+      if(res.ok)return {code,ts:res.ts,tsLocal:res.tsLocal,pending:false,registered:false,date:today()};
+      if(res.error==='duplicate')continue;
+      if(res.error==='limit')return {limit:true};
+      throw new Error(res.error||'server');
+    }catch(e){
+      // Sin señal o error del servidor: se guarda en cola y se reenvía después
+      const q=store.get('kx_queue',[]);q.push(p);store.set('kx_queue',q);
+      return {code,ts:clientTs,tsLocal:fmtCL(clientTs),pending:true,registered:false,date:today()};
+    }
+  }
+  return {limit:true};
+}
+async function flushQueue(){
+  const q=store.get('kx_queue',[]);
+  if(!q.length)return true;
+  const rest=[];
+  for(const p of q){
+    try{const r=await api(p);if(!(r.ok||r.error==='duplicate'))rest.push(p);}
+    catch(e){rest.push(p);}
+  }
+  store.set('kx_queue',rest);
+  if(!rest.length&&last&&last.pending){last.pending=false;store.set('kx_last',last);$('#pending').hidden=true;}
+  return !rest.length;
+}
+addEventListener('online',flushQueue);
+
+/* ---------- Cámara y giroscopio ---------- */
+async function startCamera(){
+  try{
+    const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false});
+    const v=$('#cam');v.srcObject=s;await v.play();
+  }catch(e){toast('No pudimos usar la cámara. Puedes jugar igual con el fondo de color.');}
+}
+let gx=0,gy=0;
+async function enableGyro(){
+  try{
+    if(typeof DeviceOrientationEvent!=='undefined'&&typeof DeviceOrientationEvent.requestPermission==='function'){
+      const r=await DeviceOrientationEvent.requestPermission();
+      if(r!=='granted')return;
+    }
+    addEventListener('deviceorientation',e=>{
+      gx=clamp((e.gamma||0)/40,-1,1);
+      gy=clamp(((e.beta==null?60:e.beta)-60)/40,-1,1);
+    });
+  }catch(e){}
+}
+
+/* ---------- Escena 3D ---------- */
+const R=1.4;
+let renderer,scene,camera,group,gameG,box,frontMat,ring,arc,arcMat,ringMat,runner,trail=[],pPoints;
+const MAXP=90,pPos=new Float32Array(MAXP*3),pCol=new Float32Array(MAXP*3),pBase=new Float32Array(MAXP*3),pVel=new Float32Array(MAXP*3),pLife=new Float32Array(MAXP);
+let pIdx=0;
+
+function glowTexture(){
+  const c=document.createElement('canvas');c.width=c.height=64;
+  const x=c.getContext('2d'),g=x.createRadialGradient(32,32,0,32,32,32);
+  g.addColorStop(0,'rgba(255,255,255,1)');g.addColorStop(.35,'rgba(255,255,255,.55)');g.addColorStop(1,'rgba(255,255,255,0)');
+  x.fillStyle=g;x.fillRect(0,0,64,64);
+  return new THREE.CanvasTexture(c);
+}
+function faceTexture(front){
+  const c=document.createElement('canvas');c.width=512;c.height=666;
+  const x=c.getContext('2d');
+  const g=x.createLinearGradient(0,0,512,666);
+  g.addColorStop(0,CONFIG.COLORS.primary);g.addColorStop(1,CONFIG.COLORS.accent);
+  x.fillStyle=g;x.fillRect(0,0,512,666);
+  x.fillStyle='rgba(255,255,255,.12)';
+  [[420,90,150],[60,560,190],[470,520,90]].forEach(([cx,cy,r])=>{x.beginPath();x.arc(cx,cy,r,0,TAU);x.fill();});
+  if(front){
+    x.fillStyle='#fff';x.textAlign='center';
+    x.font='800 132px system-ui,Arial,sans-serif';x.fillText('Kotex',256,300);
+    x.font='600 34px system-ui,Arial,sans-serif';x.fillText('caja sorpresa',256,360);
+    x.fillStyle='rgba(255,255,255,.9)';x.beginPath();x.arc(256,470,28,0,TAU);x.fill();
+    x.fillStyle=CONFIG.COLORS.primary;x.fillRect(250,452,12,36);x.fillRect(238,464,36,12);
+  }
+  const t=new THREE.CanvasTexture(c);t.anisotropy=4;return t;
+}
+function initThree(){
+  renderer=new THREE.WebGLRenderer({canvas:$('#gl'),alpha:true,antialias:true});
+  renderer.setPixelRatio(Math.min(devicePixelRatio||1,2));
+  scene=new THREE.Scene();
+  camera=new THREE.PerspectiveCamera(50,1,.1,60);
+  scene.add(new THREE.AmbientLight(0xffffff,.85));
+  const dl=new THREE.DirectionalLight(0xffffff,.9);dl.position.set(2,3,4);scene.add(dl);
+  group=new THREE.Group();scene.add(group);
+  gameG=new THREE.Group();group.add(gameG);
+
+  const side=new THREE.MeshStandardMaterial({color:CONFIG.COLORS.primary,roughness:.55,metalness:.1});
+  frontMat=new THREE.MeshStandardMaterial({map:faceTexture(true),roughness:.5,metalness:.1,emissive:new THREE.Color(CONFIG.COLORS.accent),emissiveIntensity:0});
+  const back=new THREE.MeshStandardMaterial({map:faceTexture(false),roughness:.5});
+  if(CONFIG.BOX_TEXTURE){new THREE.TextureLoader().setCrossOrigin('anonymous').load(CONFIG.BOX_TEXTURE,t=>{frontMat.map=t;frontMat.needsUpdate=true;});}
+  box=new THREE.Mesh(new THREE.BoxGeometry(1,1.3,.45),[side,side,side,side,frontMat,back]);
+  group.add(box);
+
+  ringMat=new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.4});
+  ring=new THREE.Mesh(new THREE.TorusGeometry(R,.022,10,120),ringMat);
+  gameG.add(ring);
+  arcMat=new THREE.MeshBasicMaterial({color:new THREE.Color(CONFIG.COLORS.accent),transparent:true,opacity:.95});
+  arc=new THREE.Mesh(new THREE.TorusGeometry(R,.075,14,60,CONFIG.TOLERANCE*2),arcMat);
+  gameG.add(arc);
+
+  const glow=glowTexture();
+  runner=new THREE.Sprite(new THREE.SpriteMaterial({map:glow,color:0xffffff,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending}));
+  runner.scale.set(.5,.5,1);gameG.add(runner);
+  for(let i=0;i<6;i++){
+    const s=new THREE.Sprite(new THREE.SpriteMaterial({map:glow,color:0xffd6ec,transparent:true,opacity:.5-i*.07,depthWrite:false,blending:THREE.AdditiveBlending}));
+    s.scale.setScalar(.38-i*.04);gameG.add(s);trail.push(s);
+  }
+  const pg=new THREE.BufferGeometry();
+  pg.setAttribute('position',new THREE.BufferAttribute(pPos,3));
+  pg.setAttribute('color',new THREE.BufferAttribute(pCol,3));
+  pPoints=new THREE.Points(pg,new THREE.PointsMaterial({size:.16,map:glow,vertexColors:true,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending}));
+  pPoints.frustumCulled=false;scene.add(pPoints);
+  gameG.visible=false;
+  group.scale.setScalar(.001);
+  addEventListener('resize',resize);resize();
+  requestAnimationFrame(loop);
+}
+function resize(){
+  const w=innerWidth,h=innerHeight;
+  renderer.setSize(w,h,false);
+  camera.aspect=w/h;
+  const t=Math.tan(camera.fov*Math.PI/360);
+  camera.position.z=Math.max(1.75/(t*camera.aspect),1.75/t);
+  camera.updateProjectionMatrix();
+}
+function burst(x,y,hex,n){
+  const c=new THREE.Color(hex);
+  for(let i=0;i<n;i++){
+    const k=pIdx++%MAXP,a=Math.random()*TAU,sp=.6+Math.random()*1.8;
+    pPos[k*3]=x;pPos[k*3+1]=y;pPos[k*3+2]=.1;
+    pVel[k*3]=Math.cos(a)*sp;pVel[k*3+1]=Math.sin(a)*sp;pVel[k*3+2]=(Math.random()-.5)*.6;
+    pBase[k*3]=c.r;pBase[k*3+1]=c.g;pBase[k*3+2]=c.b;pLife[k]=1;
+  }
+}
+
+/* ---------- Juego ---------- */
+const G={round:0,hits:0,running:false,theta:0,dir:1,target:0,speed:1.6,unlock:0,appear:0,t:0};
+function drawDots(res){
+  const d=$('#dots');d.innerHTML='';
+  for(let i=0;i<CONFIG.ROUNDS;i++){const e=document.createElement('i');if(res[i]===true)e.className='ok';else if(res[i]===false)e.className='no';d.appendChild(e);}
+}
+let results=[];
+function resetGame(){
+  G.round=0;G.hits=0;G.running=false;G.unlock=0;results=[];
+  ringMat.opacity=.4;gameG.scale.setScalar(1);frontMat.emissiveIntensity=0;
+  drawDots(results);
+}
+function startRound(){
+  G.target=Math.random()*TAU;
+  G.theta=G.target+Math.PI+(Math.random()-.5);
+  G.dir=Math.random()<.5?-1:1;
+  G.speed=CONFIG.SPEEDS[Math.min(G.round,CONFIG.SPEEDS.length-1)];
+  arc.rotation.z=G.target-CONFIG.TOLERANCE;
+  arcMat.color.set(CONFIG.COLORS.accent);
+  $('#roundTxt').textContent='Ronda '+(G.round+1)+' de '+CONFIG.ROUNDS;
+  $('#hint').textContent='Toca cuando la luz llegue a la zona brillante';
+  G.running=true;
+}
+function tap(){
+  if(!G.running)return;
+  G.running=false;
+  const hit=angDist(G.theta,G.target)<=CONFIG.TOLERANCE;
+  const x=R*Math.cos(G.theta),y=R*Math.sin(G.theta);
+  results.push(hit);if(hit)G.hits++;
+  G.round++;drawDots(results);
+  arcMat.color.set(hit?'#2dd4a0':'#ff6b6b');
+  burst(x,y,hit?'#2dd4a0':'#ff6b6b',hit?30:10);
+  navigator.vibrate&&navigator.vibrate(hit?[30,40,30]:90);
+  if(hit){beep(660,.1);setTimeout(()=>beep(880,.14),90);}else beep(180,.2,'sawtooth',.05);
+  $('#hint').textContent=hit?'¡Justo!':'Fallaste esta';
+  const misses=G.round-G.hits;
+  if(G.hits>=CONFIG.NEED||misses>CONFIG.ROUNDS-CONFIG.NEED)setTimeout(finish,900);
+  else setTimeout(startRound,900);
+}
+async function finish(){
+  if(G.hits<CONFIG.NEED){
+    $('#loseTxt').textContent='Acertaste '+G.hits+' de '+G.round+'. Necesitas '+CONFIG.NEED+' de '+CONFIG.ROUNDS+' para desbloquear la caja.';
+    show('lose');return;
+  }
+  $('#hint').textContent='Desbloqueando y generando tu código...';
+  G.unlock=.0001;
+  burst(0,0,CONFIG.COLORS.accent,60);
+  [523,659,784,1047].forEach((f,i)=>setTimeout(()=>beep(f,.18,'triangle'),i*110));
+  const pending=recordPlay();
+  await sleep(1600);
+  const res=await pending;
+  if(res.limit){show('limit');return;}
+  last=res;store.set('kx_last',last);
+  renderWin();show('win');
+}
+addEventListener('pointerdown',e=>{
+  if(G.running&&!e.target.closest('button,a,input,.card'))tap();
+});
+
+/* ---------- Bucle de render ---------- */
+let lastT=0;
+function loop(t){
+  requestAnimationFrame(loop);
+  const dt=Math.min((t-lastT)/1000||0,.05);lastT=t;G.t+=dt;
+  // aparición de la caja
+  if(G.appear>0&&G.appear<1){G.appear=Math.min(1,G.appear+dt/.8);const e=1-Math.pow(1-G.appear,3);group.scale.setScalar(Math.max(.001,e));}
+  // flotación y balanceo de la caja
+  box.rotation.y=Math.sin(G.t*.8)*.5;box.rotation.x=Math.sin(G.t*.6)*.08;box.position.y=Math.sin(G.t*1.4)*.05;
+  // paralaje con giroscopio
+  group.position.x+=(gx*.35-group.position.x)*.08;
+  group.position.y+=(-gy*.25-group.position.y)*.08;
+  group.rotation.y+=(gx*.25-group.rotation.y)*.08;
+  group.rotation.x+=(gy*.2-group.rotation.x)*.08;
+  // luz corredora
+  if(G.running)G.theta+=G.dir*G.speed*dt;
+  runner.position.set(R*Math.cos(G.theta),R*Math.sin(G.theta),.05);
+  trail.forEach((s,i)=>{const a=G.theta-G.dir*(i+1)*.13;s.position.set(R*Math.cos(a),R*Math.sin(a),.04);});
+  arcMat.opacity=.8+Math.sin(G.t*6)*.15;
+  // animación de desbloqueo
+  if(G.unlock>0&&G.unlock<1){
+    G.unlock=Math.min(1,G.unlock+dt/1.3);
+    const u=G.unlock;
+    gameG.scale.setScalar(1+u*.9);ringMat.opacity=.4*(1-u);arcMat.opacity=1-u;
+    runner.visible=trail[0].visible=false;
+    frontMat.emissiveIntensity=Math.sin(u*Math.PI)*.8;
+    box.scale.setScalar(1+Math.sin(u*Math.PI)*.18);
+  }
+  // partículas
+  for(let k=0;k<MAXP;k++){
+    if(pLife[k]>0){
+      pPos[k*3]+=pVel[k*3]*dt;pPos[k*3+1]+=pVel[k*3+1]*dt;pPos[k*3+2]+=pVel[k*3+2]*dt;
+      pVel[k*3]*=.97;pVel[k*3+1]*=.97;
+      pLife[k]-=dt*1.1;const l=Math.max(0,pLife[k]);
+      pCol[k*3]=pBase[k*3]*l;pCol[k*3+1]=pBase[k*3+1]*l;pCol[k*3+2]=pBase[k*3+2]*l;
+    }else{pCol[k*3]=pCol[k*3+1]=pCol[k*3+2]=0;}
+  }
+  pPoints.geometry.attributes.position.needsUpdate=true;
+  pPoints.geometry.attributes.color.needsUpdate=true;
+  renderer.render(scene,camera);
+}
+
+/* ---------- Pantallas ---------- */
+async function begin(){
+  const btn=$('#go');btn.disabled=true;
+  try{beep(1,.01,'sine',.0001);}catch(e){}
+  await Promise.allSettled([enableGyro(),startCamera()]);
+  if(!renderer)initThree();
+  runner.visible=trail[0].visible=true;box.scale.setScalar(1);
+  gameG.visible=true;G.appear=.0001;
+  resetGame();show('hud');
+  $('#hint').textContent='Apunta tu cámara a la góndola';
+  setTimeout(startRound,1500);
+  btn.disabled=false;
+}
+function renderWin(){
+  $('#code').textContent=last.code;
+  $('#ts').textContent='Hora de tu jugada: '+last.tsLocal+' (hora de Chile)';
+  $('#pending').hidden=!last.pending;
+}
+function renderDone(){
+  $('#code2').textContent=last.code;
+  $('#ts2').textContent='Hora de tu jugada: '+last.tsLocal+' (hora de Chile)';
+  $('#drawTxt').textContent=CONFIG.DRAW_TEXT;
+  show('done');
+}
+function normPhone(v){
+  let d=String(v||'').replace(/\D/g,'');
+  if(d.length===11&&d.startsWith('56'))d=d.slice(2);
+  return /^9\d{8}$/.test(d)?d:null;
+}
+const ERR={not_found:'No encontramos tu jugada. Intenta de nuevo en unos segundos.',bad_phone:'El celular no es válido.',bad_name:'Ingresa tu nombre.',busy:'Estamos con mucha demanda. Intenta de nuevo.'};
+$('#f').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const err=$('#err'),btn=$('#send');err.textContent='';
+  const name=$('#name').value.trim().replace(/\s+/g,' ');
+  const phone=normPhone($('#phone').value);
+  if(name.length<2){err.textContent=ERR.bad_name;return;}
+  if(!phone){err.textContent=ERR.bad_phone;return;}
+  if(!$('#optin').checked){err.textContent='Debes aceptar las bases para participar.';return;}
+  btn.disabled=true;btn.textContent='Enviando...';
+  try{
+    const synced=await flushQueue();
+    if(!synced)throw new Error('offline');
+    const res=await api({action:'register',code:last.code,name,phone,optin:true,device:DEVICE});
+    if(res.ok){last.registered=true;last.estado=res.estado;if(res.tsLocal)last.tsLocal=res.tsLocal;store.set('kx_last',last);renderDone();}
+    else err.textContent=ERR[res.error]||'No pudimos registrar tus datos. Intenta de nuevo.';
+  }catch(ex){
+    err.textContent='Sin conexión. Cuando tengas señal vuelve a tocar el botón (tu código ya está guardado).';
+  }finally{btn.disabled=false;btn.textContent='Registrarme en el sorteo';}
+});
+$('#go').addEventListener('click',begin);
+$('#retry').addEventListener('click',()=>{resetGame();show('hud');$('#hint').textContent='Apunta tu cámara a la góndola';setTimeout(startRound,900);});
+$('#share').addEventListener('click',async()=>{
+  const data={title:'Kotex en Salcobrand',text:'Desbloqueé mi caja Kotex en Salcobrand. ¡Juega tú también!',url:location.origin+location.pathname};
+  try{if(navigator.share)await navigator.share(data);else window.open('https://wa.me/?text='+encodeURIComponent(data.text+' '+data.url),'_blank');}catch(e){}
+});
+
+/* ---------- Arranque ---------- */
+flushQueue();
+if(last&&last.date===today()){
+  if(last.registered)renderDone();else{renderWin();show('win');}
+}else show('intro');
+})();
+</script>
+</body>
+</html>
