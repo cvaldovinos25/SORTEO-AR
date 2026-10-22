@@ -188,7 +188,7 @@ const CONFIG={
   // >>> AQUÍ VA LA CONEXIÓN CON GOOGLE SHEETS <<<
   // Pega entre las comillas la URL de la "Aplicación web" de Apps Script (termina en /exec).
   // Mientras esté vacío, la página funciona en MODO DEMO y NO guarda nada en la planilla.
-  ENDPOINT:"",
+  ENDPOINT:"https://script.google.com/macros/s/AKfycbz9HpTVkGh2_FfHDV-mHfWbiE6sVF_hC09ob5GSsoztlnYa6T8r4FR6i3Emc57TkI-0/exec",
   CAMPAIGN:"KOTEX-SALCOBRAND-2026",
   ROUNDS:5,                          // cantidad de rondas
   MAX_PER_ROUND:100,                 // puntos máximos por ronda (el puntaje máximo debe coincidir con SCORE_MAX en Code.gs)
@@ -200,7 +200,7 @@ const CONFIG={
   MODEL_URL:"",                      // opcional: URL de un modelo .glb real de la caja (reemplaza al modelo incluido)
   DRAW_TEXT:"Los códigos se sortean al cierre del concurso, y cada punto es un boleto. Si resultas ganadora, te contactaremos por celular.",
   TESTER_KEY:"salco-prueba-2026",   // clave secreta para el modo prueba (cámbiala). Activar: abrir la página con ?tester=ESA_CLAVE
-  BASES_URL:"#",
+  BASES_URL:"https://static.salcobrand.cl/spree/legal_bases/939/original/Bases_Legales_de_Concurso_-_Kotex_Mi_Salcobrand.pdf?1792003156",
   COLORS:{primary:"#6d28d9",accent:"#ff4fa3"}
 };
 const MAX_SCORE=CONFIG.ROUNDS*CONFIG.MAX_PER_ROUND;
