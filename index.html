@@ -74,6 +74,15 @@ input[type=text],input[type=tel]{width:100%;padding:14px;border-radius:14px;bord
 .chk a{color:#fff}
 .err{min-height:18px;margin:0;font-size:13px;color:var(--bad)}
 .toast{position:fixed;left:50%;top:calc(60px + env(safe-area-inset-top));transform:translateX(-50%);background:rgba(21,10,38,.92);border:1px solid rgba(255,255,255,.2);padding:10px 14px;border-radius:14px;font-size:13px;z-index:9;display:none;max-width:90%;text-align:center}
+/* pantalla de carga */
+#boot{position:fixed;inset:0;z-index:99;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;background:radial-gradient(120% 90% at 50% 20%,#3b1670,#150a26 70%);transition:opacity .45s ease,visibility .45s}
+#boot.off{opacity:0;visibility:hidden;pointer-events:none}
+#boot .dots{display:flex;gap:12px}
+#boot .dots i{width:16px;height:16px;border-radius:50%;background:linear-gradient(135deg,#6d28d9,#ff4fa3);animation:bootDot 1.1s ease-in-out infinite;box-shadow:0 0 16px rgba(255,79,163,.6)}
+#boot .dots i:nth-child(2){animation-delay:.15s}#boot .dots i:nth-child(3){animation-delay:.3s}#boot .dots i:nth-child(4){animation-delay:.45s}#boot .dots i:nth-child(5){animation-delay:.6s}
+#boot p{margin:0;font:600 15px system-ui,-apple-system,sans-serif;color:#e9ddff;letter-spacing:.04em}
+@keyframes bootDot{0%,80%,100%{transform:scale(.55);opacity:.45}40%{transform:scale(1.25);opacity:1}}
+@media (prefers-reduced-motion:reduce){#boot .dots i{animation:none}}
 /* animaciones de interfaz */
 @keyframes cardIn{from{opacity:0;transform:translateY(28px) scale(.98)}to{opacity:1;transform:none}}
 @keyframes hintPop{0%{opacity:.2;transform:scale(.85)}60%{transform:scale(1.06)}100%{opacity:1;transform:none}}
@@ -91,6 +100,7 @@ input[type=text],input[type=tel]{width:100%;padding:14px;border-radius:14px;bord
 </style>
 </head>
 <body>
+<div id="boot" role="status" aria-live="polite"><div class="dots"><i></i><i></i><i></i><i></i><i></i></div><p>Cargando...</p></div>
 <video id="cam" playsinline muted autoplay></video>
 <canvas id="gl"></canvas>
 <div class="shade"></div>
@@ -188,7 +198,7 @@ const CONFIG={
   // >>> AQUÍ VA LA CONEXIÓN CON GOOGLE SHEETS <<<
   // Pega entre las comillas la URL de la "Aplicación web" de Apps Script (termina en /exec).
   // Mientras esté vacío, la página funciona en MODO DEMO y NO guarda nada en la planilla.
-  ENDPOINT:"https://script.google.com/macros/s/AKfycbz9HpTVkGh2_FfHDV-mHfWbiE6sVF_hC09ob5GSsoztlnYa6T8r4FR6i3Emc57TkI-0/exec",
+  ENDPOINT:"",
   CAMPAIGN:"KOTEX-SALCOBRAND-2026",
   ROUNDS:5,                          // cantidad de rondas
   MAX_PER_ROUND:100,                 // puntos máximos por ronda (el puntaje máximo debe coincidir con SCORE_MAX en Code.gs)
@@ -200,7 +210,7 @@ const CONFIG={
   MODEL_URL:"",                      // opcional: URL de un modelo .glb real de la caja (reemplaza al modelo incluido)
   DRAW_TEXT:"Los códigos se sortean al cierre del concurso, y cada punto es un boleto. Si resultas ganadora, te contactaremos por celular.",
   TESTER_KEY:"salco-prueba-2026",   // clave secreta para el modo prueba (cámbiala). Activar: abrir la página con ?tester=ESA_CLAVE
-  BASES_URL:"https://static.salcobrand.cl/spree/legal_bases/939/original/Bases_Legales_de_Concurso_-_Kotex_Mi_Salcobrand.pdf?1792003156",
+  BASES_URL:"#",
   COLORS:{primary:"#6d28d9",accent:"#ff4fa3"}
 };
 const MAX_SCORE=CONFIG.ROUNDS*CONFIG.MAX_PER_ROUND;
@@ -1210,6 +1220,15 @@ async function recoverRun(){
   renderWin();show('win');
 }
 try{initThree();}catch(e){renderer=null;toast('Tu celular no puede mostrar la experiencia 3D.');}
+// quita la pantalla de carga cuando todo está listo (mínimo 700 ms; tope de seguridad 9 s)
+(function(){
+  const t0=performance.now(),b=document.getElementById('boot');
+  let done=false;
+  const hide=()=>{if(done||!b)return;done=true;b.classList.add('off');setTimeout(()=>b.remove(),700);};
+  const ready=()=>setTimeout(()=>requestAnimationFrame(()=>requestAnimationFrame(hide)),Math.max(0,700-(performance.now()-t0)));
+  if(document.readyState==='complete')ready();else addEventListener('load',ready);
+  setTimeout(hide,9000);
+})();
 flushQueue();
 if(last){
   G.openT=G.openTarget=1;if(renderer)applyOpen(1);
