@@ -188,7 +188,7 @@ const CONFIG={
   // >>> AQUÍ VA LA CONEXIÓN CON GOOGLE SHEETS <<<
   // Pega entre las comillas la URL de la "Aplicación web" de Apps Script (termina en /exec).
   // Mientras esté vacío, la página funciona en MODO DEMO y NO guarda nada en la planilla.
-  ENDPOINT:"https://script.google.com/macros/s/AKfycbz9HpTVkGh2_FfHDV-mHfWbiE6sVF_hC09ob5GSsoztlnYa6T8r4FR6i3Emc57TkI-0/exec",
+  ENDPOINT:"",
   CAMPAIGN:"KOTEX-SALCOBRAND-2026",
   ROUNDS:5,                          // cantidad de rondas
   MAX_PER_ROUND:100,                 // puntos máximos por ronda (el puntaje máximo debe coincidir con SCORE_MAX en Code.gs)
@@ -199,7 +199,8 @@ const CONFIG={
   CAMERA_FOV:60,                     // campo de visión vertical de la cámara virtual (grados). Ajusta si la caja se "desliza" respecto del fondo
   MODEL_URL:"",                      // opcional: URL de un modelo .glb real de la caja (reemplaza al modelo incluido)
   DRAW_TEXT:"Los códigos se sortean al cierre del concurso, y cada punto es un boleto. Si resultas ganadora, te contactaremos por celular.",
-  BASES_URL:"https://static.salcobrand.cl/spree/legal_bases/939/original/Bases_Legales_de_Concurso_-_Kotex_Mi_Salcobrand.pdf?1792003156",
+  TESTER_KEY:"salco-prueba-2026",   // clave secreta para el modo prueba (cámbiala). Activar: abrir la página con ?tester=ESA_CLAVE
+  BASES_URL:"#",
   COLORS:{primary:"#6d28d9",accent:"#ff4fa3"}
 };
 const MAX_SCORE=CONFIG.ROUNDS*CONFIG.MAX_PER_ROUND;
@@ -229,8 +230,18 @@ const fmtNum=n=>Number(n).toLocaleString('es-CL');
 if(!CONFIG.ENDPOINT&&qs.get('reset')){
   try{Object.keys(localStorage).filter(k=>k.startsWith('kx')).forEach(k=>localStorage.removeItem(k));}catch(e){}
 }
+// MODO PRUEBA (solo para ti): con ?tester=CLAVE el celular puede jugar infinitas veces. Para salir: ?tester=off
+const tk=qs.get('tester');
+if(tk==='off')store.del('kx_tester');else if(tk&&tk===CONFIG.TESTER_KEY)store.set('kx_tester',1);
+const TESTER=!!store.get('kx_tester');
 let DEVICE=store.get('kx_device');
 if(!DEVICE){DEVICE=rnd();store.set('kx_device',DEVICE);}
+if(TESTER){
+  // cada carga es un "dispositivo" nuevo y se borra la jugada anterior; en la planilla aparece como TEST-xxxx
+  try{Object.keys(localStorage).filter(k=>k.startsWith('kx')&&!['kx_tester','kx_queue'].includes(k)).forEach(k=>localStorage.removeItem(k));}catch(e){}
+  DEVICE='TEST-'+rnd().slice(0,12);
+  $('#demo').textContent='MODO PRUEBA';$('#demo').hidden=false;
+}
 
 document.documentElement.style.setProperty('--p',CONFIG.COLORS.primary);
 document.documentElement.style.setProperty('--a',CONFIG.COLORS.accent);
@@ -636,7 +647,7 @@ function RB(w,h,d,r,mat){
   }
   const m=new THREE.Mesh(g,mat);m.castShadow=m.receiveShadow=true;return m;
 }
-const pm=(map,color,o)=>new THREE.MeshPhysicalMaterial(Object.assign({map:map||null,color:color==null?0xffffff:color,roughness:.52,metalness:0,clearcoat:.55,clearcoatRoughness:.38},o||{}));
+const pm=(map,color,o)=>new THREE.MeshStandardMaterial(Object.assign({map:map||null,color:color==null?0xffffff:color,roughness:.46,metalness:0},o||{},{}));
 function rbAt(w,h,d,r,mat,x,y,z){const m=RB(w,h,d,r,mat);m.position.set(x,y,z);return m;}
 function stripeTex(){
   return mkTex(512,32,(x,w,h)=>{
@@ -805,12 +816,9 @@ function initThree(){
   renderer.setPixelRatio(Math.min(devicePixelRatio||1,2));
   scene=new THREE.Scene();
   camera=new THREE.PerspectiveCamera(CONFIG.CAMERA_FOV,1,.1,80);
-  renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
-  scene.add(new THREE.HemisphereLight(0xfff2f8,0xc8a0c0,.78));
+    scene.add(new THREE.HemisphereLight(0xfff2f8,0xc8a0c0,.78));
   const dl=new THREE.DirectionalLight(0xffffff,.8);dl.position.set(2,4.5,5);
-  dl.castShadow=true;dl.shadow.mapSize.set(1024,1024);dl.shadow.bias=-.0006;dl.shadow.normalBias=.02;
-  Object.assign(dl.shadow.camera,{left:-2.2,right:2.2,top:2.2,bottom:-2.2,near:1,far:14});
-  const dl2=new THREE.DirectionalLight(0xffc6e4,.4);dl2.position.set(-3,1,2);
+    const dl2=new THREE.DirectionalLight(0xffc6e4,.4);dl2.position.set(-3,1,2);
   const dl3=new THREE.DirectionalLight(0xffffff,.35);dl3.position.set(0,2,-4);
   home=new THREE.Group();scene.add(home);home.add(dl,dl.target,dl2,dl3);
   group=new THREE.Group();home.add(group);
@@ -818,7 +826,7 @@ function initThree(){
   box=new THREE.Group();group.add(box);
   rig=new THREE.Group();box.add(rig);
   const glow=glowTexture();
-  buildModel(glow);
+  try{buildModel(glow);}catch(err){console.error('modelo',err);window.__modelErr=String(err);}
   if(CONFIG.MODEL_URL)loadGLB();
 
   ringMat=new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.4});
