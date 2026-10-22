@@ -107,8 +107,8 @@ input[type=text],input[type=tel]{width:100%;padding:14px;border-radius:14px;bord
       <div class="rule"><b>1</b><span><strong>Solo puedes jugar 1 vez.</strong> Cuando termines tu jugada no podrás volver a jugar.</span></div>
       <div class="rule"><b>2</b><span><strong>Más puntaje, más probabilidad de ganar.</strong> Cada punto que sumes es un boleto en el sorteo.</span></div>
     </div>
-    <p class="how">Apunta tu cámara a la góndola y coloca la caja: queda fija en ese lugar, así que debes mantener la cámara apuntándole (si miras a otro lado, el juego se pausa). Toca la pantalla cuando la luz llegue a la zona brillante. Son <span class="n-rounds">5</span> rondas y puedes sumar hasta <span class="n-per">100</span> puntos en cada una: mientras más al centro, más puntos.</p>
-    <button class="btn" id="go">Entendido, jugar mi única vez</button>
+    <p class="how">¡Potencia tus probabilidades de ganar la PR Box de Kotex jugando este juego! Apunta tu cámara al espacio destinado y toca la caja cada vez que la luz llegue a la zona. ¡Tendrás <span class="n-rounds">5</span> rondas!</p>
+    <button class="btn" id="go">¡A jugar!</button>
     <p class="fine">Necesitas permitir la cámara y el movimiento del celular. La usamos solo para la experiencia. <a href="#" class="bases">Bases del concurso</a></p>
   </div>
 </section>
@@ -188,7 +188,7 @@ const CONFIG={
   // >>> AQUÍ VA LA CONEXIÓN CON GOOGLE SHEETS <<<
   // Pega entre las comillas la URL de la "Aplicación web" de Apps Script (termina en /exec).
   // Mientras esté vacío, la página funciona en MODO DEMO y NO guarda nada en la planilla.
-  ENDPOINT:"https://script.google.com/macros/s/AKfycbz9HpTVkGh2_FfHDV-mHfWbiE6sVF_hC09ob5GSsoztlnYa6T8r4FR6i3Emc57TkI-0/exec",
+  ENDPOINT:"",
   CAMPAIGN:"KOTEX-SALCOBRAND-2026",
   ROUNDS:5,                          // cantidad de rondas
   MAX_PER_ROUND:100,                 // puntos máximos por ronda (el puntaje máximo debe coincidir con SCORE_MAX en Code.gs)
@@ -200,7 +200,7 @@ const CONFIG={
   MODEL_URL:"",                      // opcional: URL de un modelo .glb real de la caja (reemplaza al modelo incluido)
   DRAW_TEXT:"Los códigos se sortean al cierre del concurso, y cada punto es un boleto. Si resultas ganadora, te contactaremos por celular.",
   TESTER_KEY:"salco-prueba-2026",   // clave secreta para el modo prueba (cámbiala). Activar: abrir la página con ?tester=ESA_CLAVE
-  BASES_URL:"https://static.salcobrand.cl/spree/legal_bases/939/original/Bases_Legales_de_Concurso_-_Kotex_Mi_Salcobrand.pdf?1792003156",
+  BASES_URL:"#",
   COLORS:{primary:"#6d28d9",accent:"#ff4fa3"}
 };
 const MAX_SCORE=CONFIG.ROUNDS*CONFIG.MAX_PER_ROUND;
@@ -881,6 +881,8 @@ function fitView(id){
   if(!renderer)return;
   if(id==='hud'){view.y=.15;view.s=1.2;return;}
   const card=id?document.querySelector('#'+id+' .card'):null;
+  // en la bienvenida la tarjeta nunca ocupa más del 66% de la altura: así no tapa la caja (iOS/pantallas bajas); si el texto es largo, se desplaza dentro
+  if(card&&id==='intro'){card.style.maxHeight=Math.round(innerHeight*.66)+'px';card.style.overflowY='auto';}
   // posición de diseño de la tarjeta (ignora la animación de entrada)
   const top=card?card.offsetTop-card.parentElement.scrollTop:innerHeight*.55;
   const ppu=innerHeight/(2*DIST*Math.tan(camera.fov*Math.PI/360));
