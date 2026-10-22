@@ -1,4 +1,4 @@
-# Kotex en Salcobrand | Desbloquea tu caja (WebAR)
+# KOTEX ¡SORTEO! (WebAR)
 
 Experiencia web de realidad aumentada para celulares. El/La Cliente/a podrá concursar presencialemte en un sorteo comunicado por medios digitales. Este responde a una cierta condición de compra en marca Kotex por sobre los $5.000, donde luego podrá potenciar sus probabilidades de ganar el premio del concurso por medio de una activación con realidad aumentada en locales.
 
