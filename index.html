@@ -198,22 +198,22 @@ const CONFIG={
   // >>> AQUÍ VA LA CONEXIÓN CON GOOGLE SHEETS <<<
   // Pega entre las comillas la URL de la "Aplicación web" de Apps Script (termina en /exec).
   // Mientras esté vacío, la página funciona en MODO DEMO y NO guarda nada en la planilla.
-  ENDPOINT:"https://script.google.com/macros/s/AKfycbz9HpTVkGh2_FfHDV-mHfWbiE6sVF_hC09ob5GSsoztlnYa6T8r4FR6i3Emc57TkI-0/exec",
+  ENDPOINT:"",
   CAMPAIGN:"KOTEX-SALCOBRAND-2026",
-  ROUNDS:5,                          // cantidad de rondas
-  MAX_PER_ROUND:100,                 // puntos máximos por ronda (el puntaje máximo debe coincidir con SCORE_MAX en Code.gs)
-  ZONES:[0.26,0.23,0.20,0.18,0.16],  // semiancho de la zona brillante por ronda (rad). Menor = más difícil
-  SPEEDS:[1.9,2.3,2.7,3.1,3.5],      // velocidad de la luz por ronda (rad/s)
-  WOBBLE:0.25,                       // variación aleatoria de velocidad (0 = constante)
+  ROUNDS:7,                          // cantidad de rondas
+  PER_ROUND:[50,60,65,70,75,85,95],  // puntos máximos de cada ronda (las últimas valen más). La suma debe ser igual a SCORE_MAX en Code.gs (500)
+  ZONES:[0.23,0.20,0.175,0.155,0.14,0.125,0.11],  // semiancho de la zona brillante por ronda (rad). Menor = más difícil
+  SPEEDS:[2.1,2.5,2.9,3.3,3.6,3.9,4.2],      // velocidad de la luz por ronda (rad/s)
+  WOBBLE:0.32,                       // variación aleatoria de velocidad (0 = constante)
   ROUND_TIMEOUT:7,                   // segundos máximos por ronda (si no tocas, 0 puntos)
   CAMERA_FOV:60,                     // campo de visión vertical de la cámara virtual (grados). Ajusta si la caja se "desliza" respecto del fondo
   MODEL_URL:"",                      // opcional: URL de un modelo .glb real de la caja (reemplaza al modelo incluido)
   DRAW_TEXT:"Los códigos se sortean al cierre del concurso, y cada punto es un boleto. Si resultas ganadora, te contactaremos por celular.",
   TESTER_KEY:"salco-prueba-2026",   // clave secreta para el modo prueba (cámbiala). Activar: abrir la página con ?tester=ESA_CLAVE
-  BASES_URL:"https://static.salcobrand.cl/spree/legal_bases/939/original/Bases_Legales_de_Concurso_-_Kotex_Mi_Salcobrand.pdf?1792003156",
+  BASES_URL:"#",
   COLORS:{primary:"#6d28d9",accent:"#ff4fa3"}
 };
-const MAX_SCORE=CONFIG.ROUNDS*CONFIG.MAX_PER_ROUND;
+const MAX_SCORE=CONFIG.PER_ROUND.reduce((a,b)=>a+b,0);
 
 /* ---------- Utilidades ---------- */
 const $=s=>document.querySelector(s);
@@ -257,7 +257,6 @@ document.documentElement.style.setProperty('--p',CONFIG.COLORS.primary);
 document.documentElement.style.setProperty('--a',CONFIG.COLORS.accent);
 $$('.bases').forEach(a=>{a.href=CONFIG.BASES_URL;a.target='_blank';a.rel='noopener';});
 $$('.n-rounds').forEach(e=>e.textContent=CONFIG.ROUNDS);
-$$('.n-per').forEach(e=>e.textContent=CONFIG.MAX_PER_ROUND);
 $$('.n-max').forEach(e=>e.textContent=MAX_SCORE);
 if(!CONFIG.ENDPOINT)$('#demo').hidden=false;
 
@@ -333,7 +332,7 @@ function createSfx(ac,dest){
     go(t0){const t=T(t0);[0,4,7,12].forEach((s,i)=>bell(hz(523.25,s),t+i*.02,.8,.17));noise(t,.4,.07,600,6000,.9);},
     round(t0){const t=T(t0);noise(t,.28,.2,400,2600,.9);},
     hit(pts,round,t0){                   // más puntos = acorde más brillante; sube un poco en cada ronda
-      const t=T(t0),root=hz(392,PENT[Math.min(round||0,4)]);
+      const t=T(t0),root=hz(392,PENT[Math.min(round||0,6)]);
       if(pts>=85){[0,4,7,12].forEach((s,i)=>bell(hz(root,s),t+i*.055,.9,.2));noise(t,.5,.05,5000,9000,.8,'highpass');}
       else if(pts>=50){[0,7].forEach((s,i)=>bell(hz(root,s),t+i*.07,.7,.2));noise(t,.3,.03,5000,8000,.8,'highpass');}
       else{bell(root,t,.55,.18);pluck(root/2,t,.25,.12);}
@@ -921,10 +920,11 @@ function shock(x,y,col){
 /* ---------- Juego ---------- */
 const G={round:0,score:0,running:false,theta:0,dir:1,target:0,zone:.26,speed:1.9,phase:0,roundT:0,openT:1,openTarget:1,ringOut:0,appear:0,t:0,kick:0,shake:0,flash:0,arcIn:1,ringIn:1};
 let results=[];
-function qualityClass(p){return p>=50?'ok':p>0?'mid':'no';}
+const ratio=(p,r)=>p/(CONFIG.PER_ROUND[Math.min(r,CONFIG.PER_ROUND.length-1)]||100)*100;   // calidad del toque en % del máximo de esa ronda
+function qualityClass(p,r){const q=ratio(p,r);return q>=50?'ok':q>0?'mid':'no';}
 function drawDots(){
   const d=$('#dots');d.innerHTML='';
-  for(let i=0;i<CONFIG.ROUNDS;i++){const e=document.createElement('i');if(i<results.length)e.className=qualityClass(results[i]);d.appendChild(e);}
+  for(let i=0;i<CONFIG.ROUNDS;i++){const e=document.createElement('i');if(i<results.length)e.className=qualityClass(results[i],i);d.appendChild(e);}
 }
 function updatePill(bump){
   const shown=Math.min(G.round+1,CONFIG.ROUNDS),p=$('#roundTxt');
@@ -935,9 +935,9 @@ function setHint(t,big){
   const h=$('#hint');h.textContent=t;h.classList.toggle('big',!!big);
   h.classList.remove('pop');void h.offsetWidth;h.classList.add('pop');
 }
-function floatPts(pts){
+function floatPts(pts,q){
   const e=$('#pop');e.className='';void e.offsetWidth;
-  e.textContent=pts>0?'+'+pts:'0';e.className='show '+(pts>=50?'q-ok':pts>0?'q-mid':'q-no');
+  e.textContent=pts>0?'+'+pts:'0';e.className='show '+(q>=50?'q-ok':pts>0?'q-mid':'q-no');
 }
 async function untilTracked(){while(AR.gate&&!AR.tracked)await sleep(120);}
 async function countdown(){
@@ -968,11 +968,11 @@ function startRound(){
   sfx('round');
   G.running=true;
 }
-// puntos según qué tan cerca del centro de la zona tocaste: 100 en el centro, 20 en el borde, 0 si fallas
+// puntos según qué tan cerca del centro de la zona tocaste: el máximo de la ronda en el centro, 20% en el borde, 0 si fallas
 function pointsFor(e,zone){
   if(e>zone)return 0;
   const t=clamp((e/zone-.1)/.9,0,1);
-  return Math.round(CONFIG.MAX_PER_ROUND*(1-.8*t));
+  return Math.round(CONFIG.PER_ROUND[Math.min(G.round,CONFIG.PER_ROUND.length-1)]*(1-.8*t));
 }
 function tap(){
   if(!G.running||(AR.gate&&!AR.tracked))return;
@@ -980,20 +980,20 @@ function tap(){
 }
 function endRound(pts){
   G.running=false;
-  const rIdx=G.round;
+  const rIdx=G.round,q=ratio(pts,rIdx);
   results.push(pts);G.score+=pts;G.round++;
   store.set(K('run'),{score:G.score,results});
   drawDots();updatePill(pts>0);
   const x=R*Math.cos(G.theta),y=R*Math.sin(G.theta);
-  const col=pts>=50?'#2dd4a0':pts>0?'#f5c542':'#ff6b6b';
+  const col=q>=50?'#2dd4a0':pts>0?'#f5c542':'#ff6b6b';
   arcMat.color.set(col);arcGlowMat.color.set(col);
-  burst(x,y,pts>=85?[col,'#ffffff','#ffd6ec']:col,pts>=50?36:pts>0?20:10);
+  burst(x,y,q>=85?[col,'#ffffff','#ffd6ec']:col,q>=50?36:pts>0?20:10);
   shock(x,y,col);
-  if(pts>0)G.kick=pts>=85?1:.6;else G.shake=1;      // la caja rebota al acertar y se sacude al fallar
+  if(pts>0)G.kick=q>=85?1:.6;else G.shake=1;      // la caja rebota al acertar y se sacude al fallar
   navigator.vibrate&&navigator.vibrate(pts>0?[30,40,30]:90);
-  sfx(pts>0?'hit':'miss',pts,rIdx);
-  setHint(pts>=85?'¡Perfecto!':pts>=50?'¡Muy bien!':pts>0?'Bien':'Fallaste');
-  floatPts(pts);
+  sfx(pts>0?'hit':'miss',q,rIdx);
+  setHint(q>=85?'¡Perfecto!':q>=50?'¡Muy bien!':pts>0?'Bien':'Fallaste');
+  floatPts(pts,q);
   if(G.round>=CONFIG.ROUNDS)setTimeout(finish,1000);
   else setTimeout(startRound,950);
 }
